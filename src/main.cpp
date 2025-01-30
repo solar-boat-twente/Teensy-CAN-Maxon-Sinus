@@ -145,7 +145,7 @@ void sendCAN(uint8_t nodeID, uint16_t index ,uint8_t subindex, uint32_t value){
 
   myCan.write(msg);
 
-  Serial.print("Sent ");
+  Serial.print("Sent     ");
   printCANMessage(msg);
 }
 
@@ -221,32 +221,78 @@ void SDInit() {
 
 
 void setup() {
-    beginTime = millis();
+  beginTime = millis();
 
-    Serial.begin(115200);
+  Serial.begin(115200);
 
-    Serial.println("Starting setup...");
+  Serial.println("Starting setup...");
 
-    SDInit();
+  SDInit();
 
-    Serial.println("Pins initialised");
+  Serial.println("Pins initialised");
 
-    canInit();
+  canInit();
 
-    Serial.println("CAN initialised");
+  // Serial.println("CAN initialised");
 
-    // Initialize motor settings
-    setMotorMode(0x01);
-    Serial.println("Motor enabled");
+  // Initialize motor settings
+  // setMotorMode(0x01);
+  // Serial.println("Motor enabled");
 
-    // Set position control values. 
-    sendCAN(nodeID, 0x30A1, 0x01, P);
-    sendCAN(nodeID, 0x30A1, 0x02, I);
-    sendCAN(nodeID, 0x30A1, 0x03, D);
-    sendCAN(nodeID, 0x30A1, 0x04, ff_v);
-    sendCAN(nodeID, 0x30A1, 0x05, ff_a);
-    Serial.println("Position controller gains sent");
+  // Set position control values. 
+  // sendCAN(nodeID, 0x30A1, 0x01, P);
+  // sendCAN(nodeID, 0x30A1, 0x02, I);
+  // sendCAN(nodeID, 0x30A1, 0x03, D);
+  // sendCAN(nodeID, 0x30A1, 0x04, ff_v);
+  // sendCAN(nodeID, 0x30A1, 0x05, ff_a);
+  // Serial.println("Position controller gains sent");
 
+  delay(3000);
+
+
+  sendCAN(nodeID, 0x607D, 0x01, -145000); // position limit min
+  sendCAN(nodeID, 0x607D, 0x02, 130000); // position limit max
+  sendCAN(nodeID, 0x3001, 0x0005, 22800); // torque constant
+
+  delay(5);
+
+  sendCAN(nodeID, 0x6040, 0x00, 271); // halt position mode
+  delay(5);
+  sendCAN(nodeID, 0x6040, 0x00, 0); // disable
+  delay(5);
+  sendCAN(nodeID, 0x6040, 0x00, 6); // shutdown
+  delay(5);
+
+  sendCAN(nodeID, 0x609A, 0x00, 4000); // homing acc
+  delay(1);
+  sendCAN(nodeID, 0x6099, 0x01, 500); // speed for switch search
+  delay(1);
+  sendCAN(nodeID, 0x6099, 0x02, 500); // speed for zero search
+  delay(1);
+  sendCAN(nodeID, 0x30B1, 0x00, 650000); // home offset move distance
+  delay(1);
+  sendCAN(nodeID, 0x30B2, 0x00, 500); // current threshold
+  delay(1);
+  sendCAN(nodeID, 0x30B0, 0x00, 0); // home position
+  delay(1);
+  sendCAN(nodeID, 0x6065, 0x00, 650000); // following error window
+  delay(1);
+  sendCAN(nodeID, 0x30B2, 0x00, 8000); // max profile velocity
+  delay(1);
+  sendCAN(nodeID, 0x30B0, 0x00, 50000); // quick stop deceleration
+  
+  delay(5);
+  sendCAN(nodeID, 0x6098, 0x00, -4); // homing mode
+  delay(5);
+
+  // enable()
+  sendCAN(nodeID, 0x6040, 0x00, 6); // shutdown
+  delay(5);
+  sendCAN(nodeID, 0x6040, 0x00, 15); // enable
+  delay(5);
+
+  // start homing
+  sendCAN(nodeID, 0x6040, 0x00, 31); // start homing
 
 }
 
@@ -281,8 +327,9 @@ void loop() {
   // sendCAN(nodeID, 0x30A1, 0x01, P);
 
   
-  delay(3000);
-  requestValue(0x6041, 0x00);  
+  // delay(3000);
+  // requestValue(0x6041, 0x00);
+  // Serial.println("-----------------");
 }
 
 
