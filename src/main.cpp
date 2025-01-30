@@ -22,7 +22,7 @@ FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> myCan;
 // constants
 
 File logFile; // File object for logging
-int i = 0;
+int i = 1;
 double  beginTime;
 String fileName = "log1.csv";
 uint8_t nodeID = MAXON_PORT;
@@ -61,21 +61,22 @@ int actualPosition = 0;   // Stores the actual position for logging (updated via
 // }
 
 void logCANMessage(const CAN_message_t &msg) {
-    logFile = SD.open(fileName.c_str(), FILE_WRITE);
-    if (logFile) {
-        logFile.print(msg.id, HEX);
-        logFile.print(",");
-        logFile.print(msg.len);
-        logFile.print(",");
-        for (int i = 0; i < msg.len; i++) {
-            logFile.print(msg.buf[i], HEX);
-            if (i < msg.len - 1) logFile.print(" ");
-        }
-        logFile.println();
-        logFile.close();
-    } else {
-        Serial.println("Error opening log file!");
-    }
+  
+  logFile = SD.open(fileName.c_str(), FILE_WRITE);
+  if (logFile) {
+      logFile.print(msg.id, HEX);
+      logFile.print(",");
+      logFile.print(msg.len);
+      logFile.print(",");
+      for (int i = 0; i < msg.len; i++) {
+          logFile.print(msg.buf[i], HEX);
+          if (i < msg.len - 1) logFile.print(" ");
+      }
+      logFile.println();
+      logFile.close();
+  } else {
+      Serial.println("Error opening log file!");
+  }
 }
 
 void printCANMessage(CAN_message_t message) {
@@ -99,18 +100,21 @@ void printCANMessage(CAN_message_t message) {
 }
 
 void canMessageHandler(const CAN_message_t &msg) {
-    if (msg.id == 0x580 + nodeID) { // Response to SDO request
-        uint16_t index = (msg.buf[2] << 8) | msg.buf[1];
-        uint8_t subIndex = msg.buf[3];
-        if (index == 0x6064 && subIndex == 0x00) { // Actual position
-            actualPosition = (int32_t)(msg.buf[4] | (msg.buf[5] << 8) | (msg.buf[6] << 16) | (msg.buf[7] << 24));
-            Serial.print("Actual Position: ");
-            Serial.println(actualPosition);
-        }
+    //if (msg.id == 0x580 + nodeID) { // Response to SDO request
+    //    uint16_t index = (msg.buf[2] << 8) | msg.buf[1];
+    //    uint8_t subIndex = msg.buf[3];
+    //    if (index == 0x6064 && subIndex == 0x00) { // Actual position
+    //        actualPosition = (int32_t)(msg.buf[4] | (msg.buf[5] << 8) | (msg.buf[6] << 16) | (msg.buf[7] << 24));
+    //        Serial.print("Actual Position: ");
+    //        Serial.println(actualPosition);
+    //    }
+    //}
+
+    if (msg.id != 182 && msg.id != 446 && msg.id != 381) {
+      Serial.print("Received ");
+      printCANMessage(msg);
+      logCANMessage(msg); // Save to SD card
     }
-    Serial.print("Received ");
-    printCANMessage(msg);
-    logCANMessage(msg); // Save to SD card
 }
 
 // Callback for receiving CAN messages
