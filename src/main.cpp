@@ -72,7 +72,7 @@ void canMessageHandler(const CAN_message_t &msg) {
     }
     Serial.println();
 }
-// hallo
+
 // void canSniff(const CAN_message_t &msg) {
 //   Serial.print("Received CAN Message: ");
 //   Serial.print("ID: ");
