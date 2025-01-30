@@ -46,47 +46,41 @@ float timeElapsed = 0.0;          // Total elapsed time in seconds
 int targetPosition = 0;   // Stores the target position for logging
 int actualPosition = 0;   // Stores the actual position for logging (updated via CAN message)
 
-// --------------------- INITIALISE ---------------------
-
-// Callback for receiving CAN messages
-// Updated `canMessageHandler` to set `actualPosition`
-void canMessageHandler(const CAN_message_t &msg) {
-    if (msg.id == 0x580 + nodeID) { // Response to SDO request
-        uint16_t index = (msg.buf[2] << 8) | msg.buf[1];
-        uint8_t subIndex = msg.buf[3];
-
-        if (index == 0x6064 && subIndex == 0x00) { // Actual position
-            actualPosition = (int32_t)(msg.buf[4] | (msg.buf[5] << 8) | (msg.buf[6] << 16) | (msg.buf[7] << 24));
-            Serial.print("Actual Position: ");
-            Serial.println(actualPosition);
-        }
-    }
-    Serial.print("Received CAN Message: ");
-    Serial.print("ID: ");
-    Serial.print(msg.id, HEX);
-    Serial.print(" Data: ");
-    for (uint8_t i = 0; i < msg.len; i++) {
-      Serial.print(msg.buf[i], HEX);
-      Serial.print(" ");
-    }
-    Serial.println();
-}
-
-// void canSniff(const CAN_message_t &msg) {
-//   Serial.print("Received CAN Message: ");
-//   Serial.print("ID: ");
-//   Serial.print(msg.id, HEX);
-//   Serial.print(" Data: ");
-//   for (uint8_t i = 0; i < msg.len; i++) {
-//     Serial.print(msg.buf[i], HEX);
-//     Serial.print(" ");
+// void logPosition(double timestamp, int32_t target, int32_t actual) {
+//   logFile = SD.open(fileName.c_str(), FILE_WRITE);
+//   if (logFile) {
+//     logFile.print(timestamp, 3);
+//     logFile.print(",");
+//     logFile.print(target);
+//     logFile.print(",");
+//     logFile.println(actual);
+//     logFile.close();
+//   } else {
+//     Serial.println("Error opening log file!");
 //   }
-//   Serial.println();
 // }
+
+void logCANMessage(const CAN_message_t &msg) {
+    logFile = SD.open(fileName.c_str(), FILE_WRITE);
+    if (logFile) {
+        logFile.print(msg.id, HEX);
+        logFile.print(",");
+        logFile.print(msg.len);
+        logFile.print(",");
+        for (int i = 0; i < msg.len; i++) {
+            logFile.print(msg.buf[i], HEX);
+            if (i < msg.len - 1) logFile.print(" ");
+        }
+        logFile.println();
+        logFile.close();
+    } else {
+        Serial.println("Error opening log file!");
+    }
+}
 
 void printCANMessage(CAN_message_t message) {
     // Print the CAN message ID
-    Serial.print("Written to CAN - ID: 0x");
+    Serial.print("CAN message - ID: 0x");
     Serial.print(message.id, HEX);
     
     // Print the message length
@@ -103,6 +97,40 @@ void printCANMessage(CAN_message_t message) {
     
     Serial.println();  // End the line
 }
+
+void canMessageHandler(const CAN_message_t &msg) {
+    if (msg.id == 0x580 + nodeID) { // Response to SDO request
+        uint16_t index = (msg.buf[2] << 8) | msg.buf[1];
+        uint8_t subIndex = msg.buf[3];
+        if (index == 0x6064 && subIndex == 0x00) { // Actual position
+            actualPosition = (int32_t)(msg.buf[4] | (msg.buf[5] << 8) | (msg.buf[6] << 16) | (msg.buf[7] << 24));
+            Serial.print("Actual Position: ");
+            Serial.println(actualPosition);
+        }
+    }
+    Serial.print("Received ");
+    printCANMessage(msg);
+    logCANMessage(msg); // Save to SD card
+}
+
+// Callback for receiving CAN messages
+// Updated `canMessageHandler` to set `actualPosition`
+// void canMessageHandler(const CAN_message_t &msg) {
+//   if (msg.id == 0x580 + nodeID) { // Response to SDO request
+//       uint16_t index = (msg.buf[2] << 8) | msg.buf[1];
+//       uint8_t subIndex = msg.buf[3];
+
+//       if (index == 0x6064 && subIndex == 0x00) { // Actual position
+//           actualPosition = (int32_t)(msg.buf[4] | (msg.buf[5] << 8) | (msg.buf[6] << 16) | (msg.buf[7] << 24));
+//           Serial.print("Actual Position: ");
+//           Serial.println(actualPosition);
+//       }
+//   }
+//   Serial.print("Received ");
+//   printCANMessage(msg);
+
+//   logPosition();
+// }
 
 void sendCAN(uint8_t nodeID, uint16_t index ,uint8_t subindex, uint32_t value){
   CAN_message_t msg;
@@ -121,6 +149,9 @@ void sendCAN(uint8_t nodeID, uint16_t index ,uint8_t subindex, uint32_t value){
   msg.buf[7] = (value >> 24) & 0xFF; 
 
   myCan.write(msg);
+
+  Serial.print("Sent ");
+  printCANMessage(msg);
 }
 
 void requestActualValue(uint16_t index, uint8_t subindex) {
@@ -147,13 +178,6 @@ void setMotorMode(uint32_t mode) {
 
 void sendTargetPosition(uint32_t position){
   sendCAN(nodeID, 0x607A, 0x00, position);
-}
-
-
-void initPins() {
-    pinMode(CTX_PIN, OUTPUT);
-    pinMode(CRX_PIN, OUTPUT);
-    pinMode(2, OUTPUT);
 }
 
 void canInit() {
@@ -190,21 +214,6 @@ void SDInit() {
 }
 
 
-void logPosition(double timestamp, int32_t target, int32_t actual) {
-  logFile = SD.open(fileName.c_str(), FILE_WRITE);
-  if (logFile) {
-    logFile.print(timestamp, 3);
-    logFile.print(",");
-    logFile.print(target);
-    logFile.print(",");
-    logFile.println(actual);
-    logFile.close();
-  } else {
-    Serial.println("Error opening log file!");
-  }
-}
-
-
 void setup() {
     beginTime = millis();
 
@@ -213,7 +222,6 @@ void setup() {
     Serial.println("Starting setup...");
 
     SDInit();
-    initPins();
 
     Serial.println("Pins initialised");
 
@@ -222,15 +230,15 @@ void setup() {
     Serial.println("CAN initialised");
 
     // Initialize motor settings
-    setMotorMode(0x01);
+    // setMotorMode(0x01);
     Serial.println("Motor enabled");
 
     // Set position control values. 
-    sendCAN(nodeID, 0x30A1, 0x01, P);
-    sendCAN(nodeID, 0x30A1, 0x02, I);
-    sendCAN(nodeID, 0x30A1, 0x03, D);
-    sendCAN(nodeID, 0x30A1, 0x04, ff_v);
-    sendCAN(nodeID, 0x30A1, 0x05, ff_a);
+    // sendCAN(nodeID, 0x30A1, 0x01, P);
+    // sendCAN(nodeID, 0x30A1, 0x02, I);
+    // sendCAN(nodeID, 0x30A1, 0x03, D);
+    // sendCAN(nodeID, 0x30A1, 0x04, ff_v);
+    // sendCAN(nodeID, 0x30A1, 0x05, ff_a);
     Serial.println("Position controller gains sent");
 
     Serial.println("Starting sinusoidal position control...");
@@ -265,7 +273,7 @@ void loop() {
         // logPosition(currentTime / 1000.0, targetPosition, actualPosition); // Convert ms to seconds
 
     }
-    delay(100);
+    // sendCAN(nodeID, 0x30A1, 0x01, P);
     
 }
 
