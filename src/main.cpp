@@ -28,15 +28,15 @@ String fileName = "log1.csv";
 uint8_t nodeID = MAXON_PORT;
 
 // Position controller gains
-uint32_t P = 1000000000;
-uint32_t I = 1;
-uint32_t D = 1;
-uint32_t ff_v = 1;
-uint32_t ff_a = 1;
+uint32_t P = 1661459;
+uint32_t I = 62667205;
+uint32_t D = 16448;
+uint32_t ff_v = 494;
+uint32_t ff_a = 66;
 
 
 // Parameters for the sinusoidal wave
-const int amplitude = 4096;       // Amplitude in encoder ticks (1 revolution = 4096 ticks)
+const int amplitude = 30000;       // Amplitude in encoder ticks (1 revolution = 4096 ticks)
 const float frequency = 0.5;      // Frequency in Hz (0.5 Hz = 2 seconds per cycle)
 const int updateInterval = 10;    // Sampling period in ms (100 Hz update rate)
 unsigned long lastUpdateTime = 0; // Time tracker for position updates
@@ -45,7 +45,6 @@ float timeElapsed = 0.0;          // Total elapsed time in seconds
 
 int targetPosition = 0;   // Stores the target position for logging
 int actualPosition = 0;   // Stores the actual position for logging (updated via CAN message)
-
 
 // --------------------- INITIALISE ---------------------
 
@@ -72,7 +71,7 @@ void canMessageHandler(const CAN_message_t &msg) {
     }
     Serial.println();
 }
-// hallo
+
 // void canSniff(const CAN_message_t &msg) {
 //   Serial.print("Received CAN Message: ");
 //   Serial.print("ID: ");
@@ -87,7 +86,7 @@ void canMessageHandler(const CAN_message_t &msg) {
 
 void printCANMessage(CAN_message_t message) {
     // Print the CAN message ID
-    Serial.print("CAN message - ID: 0x");
+    Serial.print("Written to CAN - ID: 0x");
     Serial.print(message.id, HEX);
     
     // Print the message length
@@ -103,33 +102,6 @@ void printCANMessage(CAN_message_t message) {
     }
     
     Serial.println();  // End the line
-}
-
-// Callback for receiving CAN messages
-// Updated `canMessageHandler` to set `actualPosition`
-void canMessageHandler(const CAN_message_t &msg) {
-    if (msg.id == 0x580 + static_cast<int>(nodeID)) { // Response to SDO request
-        uint16_t index = (msg.buf[2] << 8) | msg.buf[1];
-        uint8_t subIndex = msg.buf[3];
-
-        if (index == 0x6064 && subIndex == 0x00) { // Actual position
-            actualPosition = (int32_t)(msg.buf[4] | (msg.buf[5] << 8) | (msg.buf[6] << 16) | (msg.buf[7] << 24));
-            Serial.print("Actual Position: ");
-            Serial.println(actualPosition);
-        }
-    }
-
-    if (msg.id == (0x580 + nodeID)) {  // Check if the response is from our node
-      if (msg.buf[0] == 0x43) {  // 4-byte response
-          uint32_t value = msg.buf[4] | (msg.buf[5] << 8) | (msg.buf[6] << 16) | (msg.buf[7] << 24);
-          Serial.print("Actual Value: ");
-          Serial.println((int32_t)value);  // Print as signed integer
-      } else {
-          Serial.println("Error in response!");
-      }
-    }
-
-    printCANMessage(msg);
 }
 
 void sendCAN(uint8_t nodeID, uint16_t index ,uint8_t subindex, uint32_t value){
@@ -284,7 +256,7 @@ void loop() {
         // Serial.println("Target position: " + String(targetPosition));
 
         // Send the target position to the EPOS4
-        sendTargetPosition(targetPosition);
+        // sendTargetPosition(targetPosition);
 
         // Immediately request the actual position
         // requestActualPosition();
@@ -293,13 +265,9 @@ void loop() {
         // logPosition(currentTime / 1000.0, targetPosition, actualPosition); // Convert ms to seconds
 
     }
-
-    // sendCAN(nodeID, 0x30A1, 0x03, D);
     delay(100);
     
 }
-
-// --------------------- FUNCTIONS ---------------------
 
 
 // // Request actual position from the EPOS4
