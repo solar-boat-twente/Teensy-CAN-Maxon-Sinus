@@ -49,6 +49,42 @@ int actualPosition = 0;   // Stores the actual position for logging (updated via
 
 // --------------------- INITIALISE ---------------------
 
+// Callback for receiving CAN messages
+// Updated `canMessageHandler` to set `actualPosition`
+void canMessageHandler(const CAN_message_t &msg) {
+    if (msg.id == 0x580 + nodeID) { // Response to SDO request
+        uint16_t index = (msg.buf[2] << 8) | msg.buf[1];
+        uint8_t subIndex = msg.buf[3];
+
+        if (index == 0x6064 && subIndex == 0x00) { // Actual position
+            actualPosition = (int32_t)(msg.buf[4] | (msg.buf[5] << 8) | (msg.buf[6] << 16) | (msg.buf[7] << 24));
+            Serial.print("Actual Position: ");
+            Serial.println(actualPosition);
+        }
+    }
+    Serial.print("Received CAN Message: ");
+    Serial.print("ID: ");
+    Serial.print(msg.id, HEX);
+    Serial.print(" Data: ");
+    for (uint8_t i = 0; i < msg.len; i++) {
+      Serial.print(msg.buf[i], HEX);
+      Serial.print(" ");
+    }
+    Serial.println();
+}
+// hallo
+// void canSniff(const CAN_message_t &msg) {
+//   Serial.print("Received CAN Message: ");
+//   Serial.print("ID: ");
+//   Serial.print(msg.id, HEX);
+//   Serial.print(" Data: ");
+//   for (uint8_t i = 0; i < msg.len; i++) {
+//     Serial.print(msg.buf[i], HEX);
+//     Serial.print(" ");
+//   }
+//   Serial.println();
+// }
+
 void printCANMessage(CAN_message_t message) {
     // Print the CAN message ID
     Serial.print("CAN message - ID: 0x");
