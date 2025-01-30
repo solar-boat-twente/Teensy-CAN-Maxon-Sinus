@@ -100,17 +100,8 @@ void printCANMessage(CAN_message_t message) {
 }
 
 void canMessageHandler(const CAN_message_t &msg) {
-    //if (msg.id == 0x580 + nodeID) { // Response to SDO request
-    //    uint16_t index = (msg.buf[2] << 8) | msg.buf[1];
-    //    uint8_t subIndex = msg.buf[3];
-    //    if (index == 0x6064 && subIndex == 0x00) { // Actual position
-    //        actualPosition = (int32_t)(msg.buf[4] | (msg.buf[5] << 8) | (msg.buf[6] << 16) | (msg.buf[7] << 24));
-    //        Serial.print("Actual Position: ");
-    //        Serial.println(actualPosition);
-    //    }
-    //}
 
-    if (msg.id != 182 && msg.id != 446 && msg.id != 381) {
+    if (msg.id != 0x182 && msg.id != 0x446 && msg.id != 0x381 && msg.id != 0x80) {
       Serial.print("Received ");
       printCANMessage(msg);
       logCANMessage(msg); // Save to SD card
@@ -158,7 +149,7 @@ void sendCAN(uint8_t nodeID, uint16_t index ,uint8_t subindex, uint32_t value){
   printCANMessage(msg);
 }
 
-void requestActualValue(uint16_t index, uint8_t subindex) {
+void requestValue(uint16_t index, uint8_t subindex) {
     CAN_message_t msg;
     msg.id = 0x600 + nodeID;  // SDO Request ID (0x600 + NodeID)
     msg.flags.extended = 0;   // Standard CAN ID
@@ -174,10 +165,22 @@ void requestActualValue(uint16_t index, uint8_t subindex) {
     msg.buf[7] = 0x00;
 
     myCan.write(msg);  // Send SDO request
+
+    Serial.print("Requested ");
+    printCANMessage(msg);
 }
 
 void setMotorMode(uint32_t mode) {
-  sendCAN(nodeID, 0x6060, 0x00, mode);
+  sendCAN(nodeID, 0x6060, 0x00, 0x01); // A Operation Mode
+  delay(100);
+  sendCAN(nodeID, 0x6086, 0x00, 0x00); // B Set parameter
+  delay(100);
+  sendCAN(nodeID, 0x6040, 0x00, 0x0F); // C Enable Motor
+  delay(100);
+  sendCAN(nodeID, 0x607A, 0x00, 0x00); // D Target Position (absolute position, start immediately)
+  delay(100);
+  sendCAN(nodeID, 0x6040, 0x00, 0x3F); // E Start movement
+  delay(100);
 }
 
 void sendTargetPosition(uint32_t position){
@@ -193,7 +196,6 @@ void canInit() {
     myCan.enableFIFOInterrupt();
     myCan.enableMBInterrupts();
     myCan.onReceive(canMessageHandler); // Attach callback for receiving CAN messages
-    myCan.mailboxStatus();
 }
 
 void SDInit() {
@@ -234,18 +236,16 @@ void setup() {
     Serial.println("CAN initialised");
 
     // Initialize motor settings
-    // setMotorMode(0x01);
+    setMotorMode(0x01);
     Serial.println("Motor enabled");
 
     // Set position control values. 
-    // sendCAN(nodeID, 0x30A1, 0x01, P);
-    // sendCAN(nodeID, 0x30A1, 0x02, I);
-    // sendCAN(nodeID, 0x30A1, 0x03, D);
-    // sendCAN(nodeID, 0x30A1, 0x04, ff_v);
-    // sendCAN(nodeID, 0x30A1, 0x05, ff_a);
+    sendCAN(nodeID, 0x30A1, 0x01, P);
+    sendCAN(nodeID, 0x30A1, 0x02, I);
+    sendCAN(nodeID, 0x30A1, 0x03, D);
+    sendCAN(nodeID, 0x30A1, 0x04, ff_v);
+    sendCAN(nodeID, 0x30A1, 0x05, ff_a);
     Serial.println("Position controller gains sent");
-
-    Serial.println("Starting sinusoidal position control...");
 
 
 }
@@ -259,38 +259,32 @@ void loop() {
 
     // Calculate time since the last update for target position
     if (currentTime - lastUpdateTime >= updateInterval) {
-        lastUpdateTime = currentTime;
-        timeElapsed += updateInterval / 1000.0; // Convert ms to seconds
+      lastUpdateTime = currentTime;
+      timeElapsed += updateInterval / 1000.0; // Convert ms to seconds
 
-        // Calculate the sinusoidal target position
-        targetPosition = (int)(amplitude * sin(2 * PI * frequency * timeElapsed));
-        
-        // Serial.println("Target position: " + String(targetPosition));
+      // Calculate the sinusoidal target position
+      targetPosition = (int)(amplitude * sin(2 * PI * frequency * timeElapsed));
+      
+      // Serial.println("Target position: " + String(targetPosition));
 
-        // Send the target position to the EPOS4
-        // sendTargetPosition(targetPosition);
+      // Send the target position to the EPOS4
+      // sendTargetPosition(targetPosition);
 
-        // Immediately request the actual position
-        // requestActualPosition();
+      // Immediately request the actual position
+      // requestPosition();
 
-        // Log the data to SD card
-        // logPosition(currentTime / 1000.0, targetPosition, actualPosition); // Convert ms to seconds
+      // Log the data to SD card
+      // logPosition(currentTime / 1000.0, targetPosition, actualPosition); // Convert ms to seconds
 
-    }
-    // sendCAN(nodeID, 0x30A1, 0x01, P);
-    
+  }
+
+  // sendCAN(nodeID, 0x30A1, 0x01, P);
+
+  
+  delay(3000);
+  requestValue(0x6041, 0x00);  
 }
 
 
-// // Request actual position from the EPOS4
-// void requestActualPosition() {
-//     CAN_message_t message;
-//     message.id = 0x600 + 0x01; // Node-ID + 0x00
-//     message.buf[0] = 0x40;       // Read request
-//     message.buf[1] = 0x64;       // Index LSB (Actual position)
-//     message.buf[2] = 0x60;       // Index MSB
-//     message.buf[3] = 0x00;       // Sub-index 0
-//     message.len = 8;
-//     myCan.write(message);
-// }
+
 
