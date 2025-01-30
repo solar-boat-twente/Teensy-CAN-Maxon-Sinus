@@ -49,45 +49,9 @@ int actualPosition = 0;   // Stores the actual position for logging (updated via
 
 // --------------------- INITIALISE ---------------------
 
-// Callback for receiving CAN messages
-// Updated `canMessageHandler` to set `actualPosition`
-void canMessageHandler(const CAN_message_t &msg) {
-    if (msg.id == 0x580 + nodeID) { // Response to SDO request
-        uint16_t index = (msg.buf[2] << 8) | msg.buf[1];
-        uint8_t subIndex = msg.buf[3];
-
-        if (index == 0x6064 && subIndex == 0x00) { // Actual position
-            actualPosition = (int32_t)(msg.buf[4] | (msg.buf[5] << 8) | (msg.buf[6] << 16) | (msg.buf[7] << 24));
-            Serial.print("Actual Position: ");
-            Serial.println(actualPosition);
-        }
-    }
-    Serial.print("Received CAN Message: ");
-    Serial.print("ID: ");
-    Serial.print(msg.id, HEX);
-    Serial.print(" Data: ");
-    for (uint8_t i = 0; i < msg.len; i++) {
-      Serial.print(msg.buf[i], HEX);
-      Serial.print(" ");
-    }
-    Serial.println();
-}
-// hallo
-// void canSniff(const CAN_message_t &msg) {
-//   Serial.print("Received CAN Message: ");
-//   Serial.print("ID: ");
-//   Serial.print(msg.id, HEX);
-//   Serial.print(" Data: ");
-//   for (uint8_t i = 0; i < msg.len; i++) {
-//     Serial.print(msg.buf[i], HEX);
-//     Serial.print(" ");
-//   }
-//   Serial.println();
-// }
-
 void printCANMessage(CAN_message_t message) {
     // Print the CAN message ID
-    Serial.print("Written to CAN - ID: 0x");
+    Serial.print("CAN message - ID: 0x");
     Serial.print(message.id, HEX);
     
     // Print the message length
@@ -103,6 +67,33 @@ void printCANMessage(CAN_message_t message) {
     }
     
     Serial.println();  // End the line
+}
+
+// Callback for receiving CAN messages
+// Updated `canMessageHandler` to set `actualPosition`
+void canMessageHandler(const CAN_message_t &msg) {
+    if (msg.id == 0x580 + static_cast<int>(nodeID)) { // Response to SDO request
+        uint16_t index = (msg.buf[2] << 8) | msg.buf[1];
+        uint8_t subIndex = msg.buf[3];
+
+        if (index == 0x6064 && subIndex == 0x00) { // Actual position
+            actualPosition = (int32_t)(msg.buf[4] | (msg.buf[5] << 8) | (msg.buf[6] << 16) | (msg.buf[7] << 24));
+            Serial.print("Actual Position: ");
+            Serial.println(actualPosition);
+        }
+    }
+
+    if (msg.id == (0x580 + nodeID)) {  // Check if the response is from our node
+      if (msg.buf[0] == 0x43) {  // 4-byte response
+          uint32_t value = msg.buf[4] | (msg.buf[5] << 8) | (msg.buf[6] << 16) | (msg.buf[7] << 24);
+          Serial.print("Actual Value: ");
+          Serial.println((int32_t)value);  // Print as signed integer
+      } else {
+          Serial.println("Error in response!");
+      }
+    }
+
+    printCANMessage(msg);
 }
 
 void sendCAN(uint8_t nodeID, uint16_t index ,uint8_t subindex, uint32_t value){
@@ -141,18 +132,6 @@ void requestActualValue(uint16_t index, uint8_t subindex) {
 
     myCan.write(msg);  // Send SDO request
 }
-
-// void handleCANMessage(const CAN_message_t &msg) {
-//     if (msg.id == (0x580 + nodeID)) {  // Check if the response is from our node
-//         if (msg.buf[0] == 0x43) {  // 4-byte response
-//             uint32_t value = msg.buf[4] | (msg.buf[5] << 8) | (msg.buf[6] << 16) | (msg.buf[7] << 24);
-//             Serial.print("Actual Value: ");
-//             Serial.println((int32_t)value);  // Print as signed integer
-//         } else {
-//             Serial.println("Error in response!");
-//         }
-//     }
-// }
 
 void setMotorMode(uint32_t mode) {
   sendCAN(nodeID, 0x6060, 0x00, mode);
@@ -266,7 +245,7 @@ void loop() {
         // Calculate the sinusoidal target position
         targetPosition = (int)(amplitude * sin(2 * PI * frequency * timeElapsed));
         
-        Serial.println("Target position: " + String(targetPosition));
+        // Serial.println("Target position: " + String(targetPosition));
 
         // Send the target position to the EPOS4
         sendTargetPosition(targetPosition);
