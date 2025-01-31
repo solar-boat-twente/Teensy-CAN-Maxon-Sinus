@@ -293,58 +293,96 @@ void setup() {
 
   delay(3000);
 
-  // sendCAN_2B(nodeID, 0x6040, 0x00, 6);
+  // sendCAN_2B(nodeID, 0x6040, 0x00, 0x06);
+  // delay(1);
+  // sendCAN_2B(nodeID, 0x6040, 0x00, 0x07);
+  // delay(1);
+  // sendCAN_2B(nodeID, 0x6040, 0x00, 0x0F);
+  // delay(1);
 
-  // delay(1000);
+  // // delay(1000);
 
 
-  sendCAN(nodeID, 0x607D, 0x01, -145000); // position limit min
-  sendCAN(nodeID, 0x607D, 0x02, 130000); // position limit max
-  sendCAN(nodeID, 0x3001, 0x0005, 22800); // torque constant
+  // sendCAN(nodeID, 0x607D, 0x01, -145000); // position limit min
+  // sendCAN(nodeID, 0x607D, 0x02, 130000); // position limit max
+  // sendCAN(nodeID, 0x3001, 0x0005, 22800); // torque constant
 
-  delay(5);
+  // delay(5);
 
-  sendCAN_2B(nodeID, 0x6040, 0x00, 271); // halt position mode
-  delay(5);
-  sendCAN_2B(nodeID, 0x6040, 0x00, 0); // disable
-  delay(5);
-  sendCAN_2B(nodeID, 0x6040, 0x00, 6); // shutdown
-  delay(5);
+  // sendCAN_2B(nodeID, 0x6040, 0x00, 271); // halt position mode
+  // delay(5);
+  // sendCAN_2B(nodeID, 0x6040, 0x00, 0); // disable
+  // delay(5);
+  // sendCAN_2B(nodeID, 0x6040, 0x00, 6); // shutdown
+  // delay(5);
 
-  sendCAN(nodeID, 0x609A, 0x00, 4000); // homing acc
-  delay(1);
-  sendCAN(nodeID, 0x6099, 0x01, 500); // speed for switch search
-  delay(1);
-  sendCAN(nodeID, 0x6099, 0x02, 500); // speed for zero search
-  delay(1);
-  sendCAN(nodeID, 0x30B1, 0x00, 650000); // home offset move distance
-  delay(1);
-  sendCAN_2B(nodeID, 0x30B2, 0x00, 500); // current threshold
-  delay(1);
-  sendCAN(nodeID, 0x30B0, 0x00, 0); // home position
-  delay(1);
-  sendCAN(nodeID, 0x6065, 0x00, 650000); // following error window
-  delay(1);
-  sendCAN(nodeID, 0x607F, 0x00, 8000); // max profile velocity
-  delay(1);
-  sendCAN(nodeID, 0x6085, 0x00, 50000); // quick stop deceleration
+  // sendCAN(nodeID, 0x609A, 0x00, 4000); // homing acc
+  // delay(1);
+  // sendCAN(nodeID, 0x6099, 0x01, 500); // speed for switch search
+  // delay(1);
+  // sendCAN(nodeID, 0x6099, 0x02, 500); // speed for zero search
+  // delay(1);
+  // sendCAN(nodeID, 0x30B1, 0x00, 650000); // home offset move distance
+  // delay(1);
+  // sendCAN_2B(nodeID, 0x30B2, 0x00, 500); // current threshold
+  // delay(1);
+  // sendCAN(nodeID, 0x30B0, 0x00, 0); // home position
+  // delay(1);
+  // sendCAN(nodeID, 0x6065, 0x00, 650000); // following error window
+  // delay(1);
+  // sendCAN(nodeID, 0x607F, 0x00, 8000); // max profile velocity
+  // delay(1);
+  // sendCAN(nodeID, 0x6085, 0x00, 50000); // quick stop deceleration
   
-  delay(5);
-  sendCAN_2F(nodeID, 0x6098, 0x00, -3); // homing mode
+  // delay(5);
+  // sendCAN_2F(nodeID, 0x6098, 0x00, -3); // homing mode
+  // delay(5);
+
+  // // enable()
+  // sendCAN_2B(nodeID, 0x6040, 0x00, 6); // shutdown
+  // delay(5);
+  // sendCAN_2B(nodeID, 0x6040, 0x00, 15); // enable
+  // delay(5);
+
+  // // start homing
+  // sendCAN_2B(nodeID, 0x6040, 0x00, 31); // start homing
+
+  // delay(5);
+
+  // requestValue(0x6041, 0x00);
+
+  // ----------- Proberen ----------
+
+  requestValue(0x607F, 0x00);
+
   delay(5);
 
-  // enable()
-  sendCAN_2B(nodeID, 0x6040, 0x00, 6); // shutdown
-  delay(5);
-  sendCAN_2B(nodeID, 0x6040, 0x00, 15); // enable
-  delay(5);
-
-  // start homing
-  sendCAN_2B(nodeID, 0x6040, 0x00, 31); // start homing
+  sendCAN_2F(nodeID, 0x6060, 0x00, 0x01); // Profile position mode
 
   delay(5);
 
-  requestValue(0x6041, 0x00);
+  sendCAN(nodeID, 0x607A, 0x00, 0x000186A0); // Target position
+
+  delay(5);
+
+  sendCAN(nodeID, 0x6081, 0x00, 0x00001F00); // Profile velocity
+
+  delay(5);
+
+  sendCAN(nodeID, 0x6083, 0x00, 0x000186A0); // Profile acceleration
+
+  delay(5);
+
+  sendCAN(nodeID, 0x6084, 0x00, 0x000186A0); // Profile deceleration
+
+  delay(5);
+
+  sendCAN_2B(nodeID, 0x6040, 0x00, 0x06);
+  delay(1);
+  sendCAN_2B(nodeID, 0x6040, 0x00, 0x07);
+  delay(1);
+  sendCAN_2B(nodeID, 0x6040, 0x00, 0x0F);
+  delay(1);
 
 }
 
