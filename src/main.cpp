@@ -145,7 +145,51 @@ void sendCAN(uint8_t nodeID, uint16_t index ,uint8_t subindex, uint32_t value){
 
   myCan.write(msg);
 
-  Serial.print("Sent     ");
+  Serial.print("Sent         ");
+  printCANMessage(msg);
+}
+
+void sendCAN_2B(uint8_t nodeID, uint16_t index ,uint8_t subindex, uint32_t value){
+  CAN_message_t msg;
+  msg.id = 0x600 + nodeID;
+  msg.flags.extended = 0;
+  msg.len = 8;
+
+  msg.buf[0] = 0x2B;               // SDO Command: Write 4 bytes
+  msg.buf[1] = index & 0xFF;       // Index low byte
+  msg.buf[2] = (index >> 8) & 0xFF;// Index high byte
+  msg.buf[3] = subindex;           // Subindex
+  // Convert value to Little Endian format
+  msg.buf[4] = value & 0xFF;       
+  msg.buf[5] = (value >> 8) & 0xFF;
+  msg.buf[6] = 0x00;
+  msg.buf[7] = 0x00;
+
+  myCan.write(msg);
+
+  Serial.print("Sent       ");
+  printCANMessage(msg);
+}
+
+void sendCAN_2F(uint8_t nodeID, uint16_t index ,uint8_t subindex, uint32_t value){
+  CAN_message_t msg;
+  msg.id = 0x600 + nodeID;
+  msg.flags.extended = 0;
+  msg.len = 8;
+
+  msg.buf[0] = 0x2F;               // SDO Command: Write 4 bytes
+  msg.buf[1] = index & 0xFF;       // Index low byte
+  msg.buf[2] = (index >> 8) & 0xFF;// Index high byte
+  msg.buf[3] = subindex;           // Subindex
+  // Convert value to Little Endian format
+  msg.buf[4] = value & 0xFF;       
+  msg.buf[5] = (value >> 8) & 0xFF;
+  msg.buf[6] = 0x00;
+  msg.buf[7] = 0x00;
+
+  myCan.write(msg);
+
+  Serial.print("Sent       ");
   printCANMessage(msg);
 }
 
@@ -249,6 +293,10 @@ void setup() {
 
   delay(3000);
 
+  // sendCAN_2B(nodeID, 0x6040, 0x00, 6);
+
+  // delay(1000);
+
 
   sendCAN(nodeID, 0x607D, 0x01, -145000); // position limit min
   sendCAN(nodeID, 0x607D, 0x02, 130000); // position limit max
@@ -256,11 +304,11 @@ void setup() {
 
   delay(5);
 
-  sendCAN(nodeID, 0x6040, 0x00, 271); // halt position mode
+  sendCAN_2B(nodeID, 0x6040, 0x00, 271); // halt position mode
   delay(5);
-  sendCAN(nodeID, 0x6040, 0x00, 0); // disable
+  sendCAN_2B(nodeID, 0x6040, 0x00, 0); // disable
   delay(5);
-  sendCAN(nodeID, 0x6040, 0x00, 6); // shutdown
+  sendCAN_2B(nodeID, 0x6040, 0x00, 6); // shutdown
   delay(5);
 
   sendCAN(nodeID, 0x609A, 0x00, 4000); // homing acc
@@ -271,28 +319,32 @@ void setup() {
   delay(1);
   sendCAN(nodeID, 0x30B1, 0x00, 650000); // home offset move distance
   delay(1);
-  sendCAN(nodeID, 0x30B2, 0x00, 500); // current threshold
+  sendCAN_2B(nodeID, 0x30B2, 0x00, 500); // current threshold
   delay(1);
   sendCAN(nodeID, 0x30B0, 0x00, 0); // home position
   delay(1);
   sendCAN(nodeID, 0x6065, 0x00, 650000); // following error window
   delay(1);
-  sendCAN(nodeID, 0x30B2, 0x00, 8000); // max profile velocity
+  sendCAN(nodeID, 0x607F, 0x00, 8000); // max profile velocity
   delay(1);
-  sendCAN(nodeID, 0x30B0, 0x00, 50000); // quick stop deceleration
+  sendCAN(nodeID, 0x6085, 0x00, 50000); // quick stop deceleration
   
   delay(5);
-  sendCAN(nodeID, 0x6098, 0x00, -4); // homing mode
+  sendCAN_2F(nodeID, 0x6098, 0x00, -3); // homing mode
   delay(5);
 
   // enable()
-  sendCAN(nodeID, 0x6040, 0x00, 6); // shutdown
+  sendCAN_2B(nodeID, 0x6040, 0x00, 6); // shutdown
   delay(5);
-  sendCAN(nodeID, 0x6040, 0x00, 15); // enable
+  sendCAN_2B(nodeID, 0x6040, 0x00, 15); // enable
   delay(5);
 
   // start homing
-  sendCAN(nodeID, 0x6040, 0x00, 31); // start homing
+  sendCAN_2B(nodeID, 0x6040, 0x00, 31); // start homing
+
+  delay(5);
+
+  requestValue(0x6041, 0x00);
 
 }
 
