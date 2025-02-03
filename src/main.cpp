@@ -22,9 +22,8 @@ FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> myCan;
 // constants
 
 File logFile; // File object for logging
-int i = 1;
 double  beginTime;
-String fileName = "log1.csv";
+String fileName = "portLog.csv";
 uint8_t nodeID = MAXON_PORT;
 
 // Position controller gains
@@ -36,15 +35,12 @@ uint32_t ff_a = 66;
 
 
 // Parameters for the sinusoidal wave
-const int amplitude = 30000;       // Amplitude in encoder ticks (1 revolution = 4096 ticks)
-const float frequency = 0.5;      // Frequency in Hz (0.5 Hz = 2 seconds per cycle)
-const int updateInterval = 10;    // Sampling period in ms (100 Hz update rate)
-unsigned long lastUpdateTime = 0; // Time tracker for position updates
-unsigned long lastRequestTime = 0;        // Time tracker for actual position requests
-float timeElapsed = 0.0;          // Total elapsed time in seconds
+const int amplitude = 3000;       // Amplitude in encoder ticks
+const float frequency = 0.1;      // Frequency in Hz
+unsigned long duration = 3000;  // Duration in milliseconds
 
-int targetPosition = 0;   // Stores the target position for logging
-int actualPosition = 0;   // Stores the actual position for logging (updated via CAN message)
+unsigned long lastSendTime = 0; // Track time of the last message
+unsigned long startTime = 0;    // Track the start time of the loop
 
 // void logPosition(double timestamp, int32_t target, int32_t actual) {
 //   logFile = SD.open(fileName.c_str(), FILE_WRITE);
@@ -100,32 +96,10 @@ void printCANMessage(CAN_message_t message) {
 }
 
 void canMessageHandler(const CAN_message_t &msg) {
-
-    if (msg.id != 0x182 && msg.id != 0x446 && msg.id != 0x381 && msg.id != 0x80) {
-      Serial.print("Received ");
-      printCANMessage(msg);
-      logCANMessage(msg); // Save to SD card
-    }
+  Serial.print("Received ");
+  printCANMessage(msg);
+  // logCANMessage(msg); // Save to SD card
 }
-
-// Callback for receiving CAN messages
-// Updated `canMessageHandler` to set `actualPosition`
-// void canMessageHandler(const CAN_message_t &msg) {
-//   if (msg.id == 0x580 + nodeID) { // Response to SDO request
-//       uint16_t index = (msg.buf[2] << 8) | msg.buf[1];
-//       uint8_t subIndex = msg.buf[3];
-
-//       if (index == 0x6064 && subIndex == 0x00) { // Actual position
-//           actualPosition = (int32_t)(msg.buf[4] | (msg.buf[5] << 8) | (msg.buf[6] << 16) | (msg.buf[7] << 24));
-//           Serial.print("Actual Position: ");
-//           Serial.println(actualPosition);
-//       }
-//   }
-//   Serial.print("Received ");
-//   printCANMessage(msg);
-
-//   logPosition();
-// }
 
 void sendCAN(uint8_t nodeID, uint16_t index ,uint8_t subindex, uint32_t value){
   CAN_message_t msg;
@@ -145,7 +119,7 @@ void sendCAN(uint8_t nodeID, uint16_t index ,uint8_t subindex, uint32_t value){
 
   myCan.write(msg);
 
-  Serial.print("Sent         ");
+  Serial.print("Sent     ");
   printCANMessage(msg);
 }
 
@@ -167,7 +141,7 @@ void sendCAN_2B(uint8_t nodeID, uint16_t index ,uint8_t subindex, uint32_t value
 
   myCan.write(msg);
 
-  Serial.print("Sent       ");
+  Serial.print("Sent     ");
   printCANMessage(msg);
 }
 
@@ -189,7 +163,7 @@ void sendCAN_2F(uint8_t nodeID, uint16_t index ,uint8_t subindex, uint32_t value
 
   myCan.write(msg);
 
-  Serial.print("Sent       ");
+  Serial.print("Sent     ");
   printCANMessage(msg);
 }
 
@@ -214,21 +188,14 @@ void requestValue(uint16_t index, uint8_t subindex) {
     printCANMessage(msg);
 }
 
-void setMotorMode(uint32_t mode) {
-  sendCAN(nodeID, 0x6060, 0x00, 0x01); // A Operation Mode
-  delay(100);
-  sendCAN(nodeID, 0x6086, 0x00, 0x00); // B Set parameter
-  delay(100);
-  sendCAN(nodeID, 0x6040, 0x00, 0x0F); // C Enable Motor
-  delay(100);
-  sendCAN(nodeID, 0x607A, 0x00, 0x00); // D Target Position (absolute position, start immediately)
-  delay(100);
-  sendCAN(nodeID, 0x6040, 0x00, 0x3F); // E Start movement
-  delay(100);
-}
-
-void sendTargetPosition(uint32_t position){
-  sendCAN(nodeID, 0x607A, 0x00, position);
+void initMotor() {
+  Serial.println("Ready to switch on, Switched on, Enable operation:");
+  sendCAN_2B(nodeID, 0x6040, 0x00, 0x06); // Ready to switch on
+  delay(1);
+  sendCAN_2B(nodeID, 0x6040, 0x00, 0x07); // Switched on
+  delay(1);
+  sendCAN_2B(nodeID, 0x6040, 0x00, 0x0F); // Enable operation
+  delay(1);
 }
 
 void canInit() {
@@ -263,6 +230,17 @@ void SDInit() {
     }
 }
 
+// Function to convert decimal value to 2's complement hex value
+unsigned long toTwosComplementHex(int value) {
+  // Assuming the value fits within 32 bits, use a 32-bit mask to handle wrapping
+  if (value < 0) {
+    // Calculate 2's complement for negative numbers
+    return (unsigned long)((1L << 32) + value); // 32-bit 2's complement
+  }
+  // For positive values, just return the value
+  return (unsigned long)value;
+}
+
 
 void setup() {
   beginTime = millis();
@@ -277,12 +255,6 @@ void setup() {
 
   canInit();
 
-  // Serial.println("CAN initialised");
-
-  // Initialize motor settings
-  // setMotorMode(0x01);
-  // Serial.println("Motor enabled");
-
   // Set position control values. 
   // sendCAN(nodeID, 0x30A1, 0x01, P);
   // sendCAN(nodeID, 0x30A1, 0x02, I);
@@ -293,96 +265,28 @@ void setup() {
 
   delay(3000);
 
-  // sendCAN_2B(nodeID, 0x6040, 0x00, 0x06);
-  // delay(1);
-  // sendCAN_2B(nodeID, 0x6040, 0x00, 0x07);
-  // delay(1);
-  // sendCAN_2B(nodeID, 0x6040, 0x00, 0x0F);
-  // delay(1);
-
-  // // delay(1000);
-
-
-  // sendCAN(nodeID, 0x607D, 0x01, -145000); // position limit min
-  // sendCAN(nodeID, 0x607D, 0x02, 130000); // position limit max
-  // sendCAN(nodeID, 0x3001, 0x0005, 22800); // torque constant
-
-  // delay(5);
-
-  // sendCAN_2B(nodeID, 0x6040, 0x00, 271); // halt position mode
-  // delay(5);
-  // sendCAN_2B(nodeID, 0x6040, 0x00, 0); // disable
-  // delay(5);
-  // sendCAN_2B(nodeID, 0x6040, 0x00, 6); // shutdown
-  // delay(5);
-
-  // sendCAN(nodeID, 0x609A, 0x00, 4000); // homing acc
-  // delay(1);
-  // sendCAN(nodeID, 0x6099, 0x01, 500); // speed for switch search
-  // delay(1);
-  // sendCAN(nodeID, 0x6099, 0x02, 500); // speed for zero search
-  // delay(1);
-  // sendCAN(nodeID, 0x30B1, 0x00, 650000); // home offset move distance
-  // delay(1);
-  // sendCAN_2B(nodeID, 0x30B2, 0x00, 500); // current threshold
-  // delay(1);
-  // sendCAN(nodeID, 0x30B0, 0x00, 0); // home position
-  // delay(1);
-  // sendCAN(nodeID, 0x6065, 0x00, 650000); // following error window
-  // delay(1);
-  // sendCAN(nodeID, 0x607F, 0x00, 8000); // max profile velocity
-  // delay(1);
-  // sendCAN(nodeID, 0x6085, 0x00, 50000); // quick stop deceleration
+  requestValue(0x6041, 0x00);
   
-  // delay(5);
-  // sendCAN_2F(nodeID, 0x6098, 0x00, -3); // homing mode
-  // delay(5);
 
-  // // enable()
-  // sendCAN_2B(nodeID, 0x6040, 0x00, 6); // shutdown
-  // delay(5);
-  // sendCAN_2B(nodeID, 0x6040, 0x00, 15); // enable
-  // delay(5);
+  // initMotor(); // Motor enable
 
-  // // start homing
-  // sendCAN_2B(nodeID, 0x6040, 0x00, 31); // start homing
+  // Serial.println("Set target position:");
+  // delay(1);
+  // sendCAN(nodeID, 0x607A, 0x00, 0); // Set target position
 
-  // delay(5);
+  // Serial.println("What is the target position:");
+  // delay(1);
+  // requestValue(0x607A, 0x00); // Kijken wat de target position is
 
+  // Serial.println("Start movement:");
+  // delay(1);
+  // sendCAN_2B(nodeID, 0x6040, 0x00, 0x1F); // Set 'new setpoint' and 'start motion bits'
+
+  // Serial.println("Movement status:");
+  // delay(1);
   // requestValue(0x6041, 0x00);
 
-  // ----------- Proberen ----------
-
-  requestValue(0x607F, 0x00);
-
-  delay(5);
-
-  sendCAN_2F(nodeID, 0x6060, 0x00, 0x01); // Profile position mode
-
-  delay(5);
-
-  sendCAN(nodeID, 0x607A, 0x00, 0x000186A0); // Target position
-
-  delay(5);
-
-  sendCAN(nodeID, 0x6081, 0x00, 0x00001F00); // Profile velocity
-
-  delay(5);
-
-  sendCAN(nodeID, 0x6083, 0x00, 0x000186A0); // Profile acceleration
-
-  delay(5);
-
-  sendCAN(nodeID, 0x6084, 0x00, 0x000186A0); // Profile deceleration
-
-  delay(5);
-
-  sendCAN_2B(nodeID, 0x6040, 0x00, 0x06);
-  delay(1);
-  sendCAN_2B(nodeID, 0x6040, 0x00, 0x07);
-  delay(1);
-  sendCAN_2B(nodeID, 0x6040, 0x00, 0x0F);
-  delay(1);
+  // startTime = millis();
 
 }
 
@@ -390,37 +294,17 @@ void setup() {
 
 
 void loop() {
+  // if (millis() - startTime < duration) {
+  //   int value = amplitude * sin(2 * PI * frequency * (millis() / 1000.0));
+  //   sendCAN(nodeID, 0x607A, 0x00, toTwosComplementHex(value));
+  //   delay(1);
+  //   sendCAN_2B(nodeID, 0x6040, 0x00, 0x1F);
+  //   delay(1);
 
-  unsigned long currentTime = millis();
-
-    // Calculate time since the last update for target position
-    if (currentTime - lastUpdateTime >= updateInterval) {
-      lastUpdateTime = currentTime;
-      timeElapsed += updateInterval / 1000.0; // Convert ms to seconds
-
-      // Calculate the sinusoidal target position
-      targetPosition = (int)(amplitude * sin(2 * PI * frequency * timeElapsed));
-      
-      // Serial.println("Target position: " + String(targetPosition));
-
-      // Send the target position to the EPOS4
-      // sendTargetPosition(targetPosition);
-
-      // Immediately request the actual position
-      // requestPosition();
-
-      // Log the data to SD card
-      // logPosition(currentTime / 1000.0, targetPosition, actualPosition); // Convert ms to seconds
-
-  }
-
-  // sendCAN(nodeID, 0x30A1, 0x01, P);
-
-  
-  // delay(3000);
-  // requestValue(0x6041, 0x00);
-  // Serial.println("-----------------");
+  //   // logPosition(currentTime / 1000.0, targetPosition, actualPosition); // Convert ms to seconds
+  // }
 }
+
 
 
 
